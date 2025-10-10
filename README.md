@@ -59,13 +59,29 @@ CertName.java 程序计算这个哈希值，确保证书被正确识别。
 ## 文件结构 | File Structure
 
 ```
+ .
+├── CHANGELOG.md
 ├── CertName.java              # 证书哈希计算程序
-├── make.py                    # 构建脚本
-├── customize.sh               # 安装时执行
-├── post-fs-data.sh            # 启动时执行
-├── .ca_inst_state.sh          # 服务脚本（状态检测）
-├── module.prop                # 模块配置
-└── system/etc/security/cacerts/  # 证书存储目录
+├── LICENSE
+├── Module
+│   ├── .ca_inst_state.sh	# 模块状态检测
+│   ├── META-INF			# Magisk支持
+│   │   └── com
+│   │       └── google
+│   │           └── android
+│   │               ├── update-binary
+│   │               └── updater-script
+│   ├── customize.sh		# 安装脚本
+│   ├── module.prop		# 模块信息
+│   ├── post-fs-data.sh		# 启动时执行脚本
+│   ├── system
+│   │   └── etc
+│   │       └── security
+│   │           └── cacerts
+│   │               └── .keep
+│   └── verify.sh			# 验证模块完整性
+├── README.md
+└── make.py				# 构建脚本
 ```
 
 ## 文件说明 | File Descriptions
@@ -114,7 +130,7 @@ adb shell cat /data/adb/modules/CA-Installer/CustomCACert.log
 A: 是的，需要重启设备以使证书生效。
 
 **Q: 如何卸载模块？**
-A: 在 Magisk/KernelSU/APatch 管理器中找到 CA Installer 模块，点击卸载即可。
+A: 在 Magisk/KernelSU/APatch/MMRL 管理器中找到 CA Installer 模块，点击卸载即可。
 
 **Q: 为什么某个应用的证书没有被安装？**
 A: 确保应用已经安装并且证书已经导入到应用中。检查日志文件了解详细信息。
@@ -144,7 +160,7 @@ python3 make.py
 
 ## 许可证 | License
 
-该项目的具体许可证信息请查看项目根目录中的 LICENSE 文件。
+[GPLv3](./LICENSE)
 
 ## 贡献者 | Contributors
 
