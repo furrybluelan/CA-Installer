@@ -140,7 +140,6 @@ class Builder:
             logger.error(f"Failed to move DEX file: {e}")
             self.failed_steps.append("Move DEX file")
             return False
-    
     def cleanup_class_file(self) -> bool:
         """Remove compiled class file."""
         try:
