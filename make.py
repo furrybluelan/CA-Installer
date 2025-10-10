@@ -41,6 +41,9 @@ class Builder:
     JAVA_SOURCE_VERSION = "1.8"
     JAVA_TARGET_VERSION = "1.8"
     
+    # DEX compiler (d8 is preferred over dx)
+    DEX_COMPILER = "d8"  # Use "dx" as fallback if d8 not available
+    
     def __init__(self):
         """Initialize builder."""
         self.failed_steps = []
@@ -86,22 +89,20 @@ class Builder:
             logger.error(f"Source file not found: {self.CERT_NAME_JAVA}")
             return False
         
-        # Check for required tools
-        tools = {
-            "javac": "Java compiler",
-            "dx": "Android DEX tool"
-        }
+        # Check for javac
+        result = subprocess.run(
+            "which javac",
+            shell=True,
+            capture_output=True
+        )
+        if result.returncode != 0:
+            logger.error("Java compiler (javac) not found. Please install JDK 8 or later.")
+            return False
+        logger.info("Found Java compiler: javac")
         
-        for tool, description in tools.items():
-            result = subprocess.run(
-                f"which {tool}",
-                shell=True,
-                capture_output=True
-            )
-            if result.returncode != 0:
-                logger.error(f"{description} ({tool}) not found. Please install it.")
-                return False
-            logger.info(f"Found {description}: {tool}")
+        # Check for DEX compiler (d8 or dx)
+        if not self.check_dex_compiler():
+            return False
         
         return True
     
@@ -121,11 +122,19 @@ class Builder:
     def move_dex_to_module(self) -> bool:
         """Move DEX file to module directory."""
         try:
-            if not self.CERT_NAME_DEX.exists():
-                raise FileNotFoundError(f"DEX file not found: {self.CERT_NAME_DEX}")
+            # d8 outputs to Module/ directory directly, so check both locations
+            dex_source = self.MODULE_DEX if self.MODULE_DEX.exists() else self.CERT_NAME_DEX
             
-            logger.info(f"Moving {self.CERT_NAME_DEX} to {self.MODULE_DEX}")
-            shutil.move(str(self.CERT_NAME_DEX), str(self.MODULE_DEX))
+            if not dex_source.exists():
+                raise FileNotFoundError(f"DEX file not found at {self.CERT_NAME_DEX} or {self.MODULE_DEX}")
+            
+            # If already in the right place, no need to move
+            if dex_source == self.MODULE_DEX:
+                logger.info(f"DEX file already in correct location: {self.MODULE_DEX}")
+                return True
+            
+            logger.info(f"Moving {dex_source} to {self.MODULE_DEX}")
+            shutil.move(str(dex_source), str(self.MODULE_DEX))
             return True
         except (FileNotFoundError, shutil.Error) as e:
             logger.error(f"Failed to move DEX file: {e}")
