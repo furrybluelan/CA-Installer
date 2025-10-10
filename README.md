@@ -2,31 +2,32 @@
 
 将多种抓包软件的CA证书安装到系统中的 Magisk/KernelSU/APatch 模块。
 
-Install CA certificates from multiple packet capture apps into the system. Compatible with Magisk, KernelSU, and APatch.
+## 功能特性
 
-## 功能特性 | Features
+- 📦 **自动检测和安装证书**
+- 🔐 **系统级证书安装**
+- 📱 **Android 14+ 支持**
+- 🔄 **多框架兼容**
+- 🌍 **多语言支持**
 
-- 📦 **自动检测和安装证书** - Automatically detects and installs CA certificates from multiple packet capture apps
-- 🔐 **系统级证书安装** - Installs certificates at the system level
-- 📱 **Android 14+ 支持** - Full support for Android 14+ with APEX module integration
-- 🔄 **多框架兼容** - Compatible with Magisk, KernelSU, and APatch
-- 🌍 **多语言支持** - Chinese and English UI
+## 支持的应用
 
-## 支持的应用 | Supported Apps
-
-- **AdGuard** - Ad blocking proxy
-- **Reqable** - HTTP/HTTPS debugging proxy
-- **HttpCanary** - HTTP/HTTPS packet capture
-- **ProxyPin** - Network proxy tool
+- **AdGuard** - 广告拦截应用
+- **Reqable** - 抓包软件
+- **HttpCanary** - 抓包软件
+- **ProxyPin** - 抓包软件
 
 ## 安装 | Installation
 
-1. 下载最新的 Module.zip 文件 | Download the latest Module.zip file
-2. 在 Magisk/KernelSU/APatch 管理器中选择"安装模块从 ZIP" | Select "Install module from ZIP" in your manager
-3. 选择下载的 Module.zip 文件 | Select the downloaded Module.zip file
-4. 重启设备 | Reboot your device
+1. 下载最新的 Module.zip 文件
+2. 安装模块
+3. 重启设备
 
 ## 工作原理 | How it Works
+
+1. 从各个软件的私有目录提取证书
+2. 通过 CertName.dex 计算证书的系统证书名
+3. 挂载证书
 
 ### 安装流程 | Installation Process
 
@@ -160,12 +161,7 @@ python3 make.py
 
 ## 更新日志 | Changelog
 
-### v1.5-Release (2025-10-10)
-
-- ✅ 修复 post-fs-data.sh 中的 CheckCert 函数问题
-- ✅ 改进 Android 14+ 证书挂载逻辑
-- ✅ 添加更详细的日志输出
-- ✅ 增强错误处理机制
+请看 [CHANGELOG.md](./CHANGELOG.md)
 
 ---
 
