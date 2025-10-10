@@ -1,0 +1,71 @@
+# GitHub Actions 工作流程名称
+name: Build and Release CI
+
+# 工作流程触发条件：当一个格式为 'v*' 的标签被推送到仓库时触发
+on:
+  push:
+    tags:
+      - 'v*'
+
+# 定义一系列任务（jobs）
+jobs:
+  build-and-release:
+    # 任务名称
+    name: Build and Create Release
+    # 运行任务的虚拟机环境
+    runs-on: ubuntu-latest
+    # 任务执行的步骤
+    steps:
+      # 步骤一：检出（下载）仓库代码
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 步骤二：设置 Java 开发环境（JDK 8）
+      # make.py 脚本中的 javac 命令需要 Java 环境
+      - name: Set up JDK 8
+        uses: actions/setup-java@v4
+        with:
+          java-version: '8'
+          distribution: 'temurin'
+          cache: 'maven'
+
+      # 步骤三：设置 Python 环境
+      # 用于执行 make.py 构建脚本
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      # 步骤四：设置 Android SDK 环境
+      # make.py 脚本中的 dx 工具（用于将 .class 转换为 .dex）需要此环境
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      # 步骤五：执行构建脚本
+      # 运行 make.py 来编译、打包，并生成最终的 Module.zip 文件
+      - name: Build the module
+        run: python3 make.py
+        
+      # 步骤六：从 CHANGELOG.md 中提取更新日志
+      # 使用 awk 命令以适应新的日志格式（以 ## 开头，无 --- 分隔符）
+      - name: Extract Changelog
+        id: changelog
+        run: |
+          CHANGELOG_CONTENT=$(awk "/^## ${GITHUB_REF_NAME}/{f=1; next} /^## /{f=0} f" CHANGELOG.md | sed '/^$/d')
+          echo "changelog_text<<EOF" >> $GITHUB_OUTPUT
+          echo "$CHANGELOG_CONTENT" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          
+      # 步骤七：创建 GitHub Release
+      # 使用 softprops/action-gh-release 插件来自动创建发布
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          # Release 的标题将使用标签名
+          name: ${{ github.ref_name }}
+          # Release 的内容使用上一步提取的更新日志
+          body: ${{ steps.changelog.outputs.changelog_text }}
+          # 标记为正式版（非预发布）
+          prerelease: false
+          # 指定要上传的附件文件，即构建好的 Magisk 模块
+          files: Module.zip

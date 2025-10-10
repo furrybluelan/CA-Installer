@@ -1,71 +1,224 @@
-# GitHub Actions 工作流程名称
-name: Build and Release CI
+name: Build and Release
 
-# 工作流程触发条件：当一个格式为 'v*' 的标签被推送到仓库时触发
 on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version tag (e.g., v1.5-Release)'
+        required: false
 
-# 定义一系列任务（jobs）
 jobs:
-  build-and-release:
-    # 任务名称
-    name: Build and Create Release
-    # 运行任务的虚拟机环境
+  build:
     runs-on: ubuntu-latest
-    # 任务执行的步骤
+    
+    permissions:
+      contents: write
+    
     steps:
-      # 步骤一：检出（下载）仓库代码
-      - name: Checkout repository
+      - name: Checkout code
         uses: actions/checkout@v4
-
-      # 步骤二：设置 Java 开发环境（JDK 8）
-      # make.py 脚本中的 javac 命令需要 Java 环境
-      - name: Set up JDK 8
+        with:
+          fetch-depth: 0
+      
+      - name: Set up Java
         uses: actions/setup-java@v4
         with:
-          java-version: '8'
           distribution: 'temurin'
-          cache: 'maven'
-
-      # 步骤三：设置 Python 环境
-      # 用于执行 make.py 构建脚本
+          java-version: '8'
+      
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v4
         with:
           python-version: '3.x'
-
-      # 步骤四：设置 Android SDK 环境
-      # make.py 脚本中的 dx 工具（用于将 .class 转换为 .dex）需要此环境
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-
-      # 步骤五：执行构建脚本
-      # 运行 make.py 来编译、打包，并生成最终的 Module.zip 文件
-      - name: Build the module
-        run: python3 make.py
-        
-      # 步骤六：从 CHANGELOG.md 中提取更新日志
-      # 使用 awk 命令以适应新的日志格式（以 ## 开头，无 --- 分隔符）
-      - name: Extract Changelog
-        id: changelog
+      
+      - name: Install dependencies
         run: |
-          CHANGELOG_CONTENT=$(awk "/^## ${GITHUB_REF_NAME}/{f=1; next} /^## /{f=0} f" CHANGELOG.md | sed '/^$/d')
-          echo "changelog_text<<EOF" >> $GITHUB_OUTPUT
-          echo "$CHANGELOG_CONTENT" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
+          # Install Android SDK Build Tools (dx)
+          sudo apt-get update
+          sudo apt-get install -y android-sdk-build-tools
+      
+      - name: Extract version from tag
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "push" ]; then
+            VERSION=${GITHUB_REF#refs/tags/}
+          else
+            VERSION=${{ github.event.inputs.version }}
+            if [ -z "$VERSION" ]; then
+              VERSION=$(grep '^versionCode=' Module/module.prop 2>/dev/null | cut -d= -f2 || echo "dev")
+              VERSION="v1.5-${VERSION}"
+            fi
+          fi
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "version_name=${VERSION#v}" >> $GITHUB_OUTPUT
+      
+      - name: Build module
+        run: |
+          python3 make.py
+      
+      - name: Verify build artifacts
+        run: |
+          if [ ! -f "Module.zip" ]; then
+            echo "Error: Module.zip not found"
+            exit 1
+          fi
+          ls -lh Module.zip
+      
+      - name: Generate checksums
+        id: checksums
+        run: |
+          cd .
+          SHA256=$(sha256sum Module.zip | awk '{print $1}')
+          MD5=$(md5sum Module.zip | awk '{print $1}')
+          echo "sha256=${SHA256}" >> $GITHUB_OUTPUT
+          echo "md5=${MD5}" >> $GITHUB_OUTPUT
           
-      # 步骤七：创建 GitHub Release
-      # 使用 softprops/action-gh-release 插件来自动创建发布
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+          # Save to file for later use
+          echo "Module.zip: $SHA256" > CHECKSUMS.txt
+          echo "Module.zip: $MD5" >> CHECKSUMS.txt
+      
+      - name: Generate release notes
+        id: release_notes
+        run: |
+          VERSION=${{ steps.version.outputs.version }}
+          echo "## 📦 Release: ${VERSION}" > RELEASE_NOTES.md
+          echo "" >> RELEASE_NOTES.md
+          echo "### 📋 Changes" >> RELEASE_NOTES.md
+          echo "" >> RELEASE_NOTES.md
+          
+          # Extract from CHANGELOG if exists
+          if [ -f "CHANGELOG.md" ]; then
+            awk '/^## '$VERSION'$/,/^## / {if(/^## / && !/^## '$VERSION'$/) exit; print}' CHANGELOG.md >> RELEASE_NOTES.md || echo "- See CHANGELOG.md for details" >> RELEASE_NOTES.md
+          else
+            echo "- See git log for details" >> RELEASE_NOTES.md
+          fi
+          
+          echo "" >> RELEASE_NOTES.md
+          echo "### 🔒 Checksums" >> RELEASE_NOTES.md
+          echo "" >> RELEASE_NOTES.md
+          echo "**SHA256:** \`${{ steps.checksums.outputs.sha256 }}\`" >> RELEASE_NOTES.md
+          echo "" >> RELEASE_NOTES.md
+          echo "**MD5:** \`${{ steps.checksums.outputs.md5 }}\`" >> RELEASE_NOTES.md
+          echo "" >> RELEASE_NOTES.md
+          echo "### 📱 Installation" >> RELEASE_NOTES.md
+          echo "" >> RELEASE_NOTES.md
+          echo "1. Download \`Module.zip\`" >> RELEASE_NOTES.md
+          echo "2. Flash via Magisk/KernelSU/APatch Manager" >> RELEASE_NOTES.md
+          echo "3. Reboot your device" >> RELEASE_NOTES.md
+      
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
         with:
-          # Release 的标题将使用标签名
-          name: ${{ github.ref_name }}
-          # Release 的内容使用上一步提取的更新日志
-          body: ${{ steps.changelog.outputs.changelog_text }}
-          # 标记为正式版（非预发布）
-          prerelease: false
-          # 指定要上传的附件文件，即构建好的 Magisk 模块
-          files: Module.zip
+          files: |
+            Module.zip
+            CHECKSUMS.txt
+          body_path: RELEASE_NOTES.md
+          draft: false
+          prerelease: ${{ contains(steps.version.outputs.version, 'alpha') || contains(steps.version.outputs.version, 'beta') || contains(steps.version.outputs.version, 'rc') }}
+          tag_name: ${{ steps.version.outputs.version }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ca-installer-build-${{ steps.version.outputs.version }}
+          path: |
+            Module.zip
+            CHECKSUMS.txt
+            RELEASE_NOTES.md
+            CustomCACert.log
+          retention-days: 30
+      
+      - name: Comment on commit
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.git.createRef({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: 'refs/tags/${{ steps.version.outputs.version }}',
+              sha: context.sha
+            }).catch(() => {
+              // Tag already exists
+              console.log('Tag already exists');
+            });
+
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Lint shell scripts
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y shellcheck
+          
+          # Check shell scripts
+          shellcheck -x customize.sh post-fs-data.sh .ca_inst_state.sh || true
+      
+      - name: Verify file structure
+        run: |
+          echo "Checking module structure..."
+          
+          # Check essential files
+          files=(
+            "Module/module.prop"
+            "Module/customize.sh"
+            "Module/post-fs-data.sh"
+            "Module/verify.sh"
+            "Module/.ca_inst_state.sh"
+            "Module/META-INF/com/google/android/update-binary"
+            "Module/META-INF/com/google/android/updater-script"
+          )
+          
+          for file in "${files[@]}"; do
+            if [ ! -f "$file" ]; then
+              echo "❌ Missing: $file"
+              exit 1
+            fi
+            echo "✅ Found: $file"
+          done
+          
+          echo "✅ Module structure verified"
+      
+      - name: Validate module.prop
+        run: |
+          echo "Validating module.prop..."
+          
+          if grep -q "^id=" Module/module.prop && \
+             grep -q "^name=" Module/module.prop && \
+             grep -q "^version=" Module/module.prop && \
+             grep -q "^versionCode=" Module/module.prop && \
+             grep -q "^author=" Module/module.prop && \
+             grep -q "^description=" Module/module.prop; then
+            echo "✅ module.prop is valid"
+          else
+            echo "❌ module.prop is incomplete"
+            exit 1
+          fi
+
+  notify:
+    runs-on: ubuntu-latest
+    needs: build
+    if: always() && startsWith(github.ref, 'refs/tags/')
+    
+    steps:
+      - name: Notify success
+        if: success()
+        run: |
+          echo "✅ Release build completed successfully!"
+          echo "Version: ${{ github.ref_name }}"
+      
+      - name: Notify failure
+        if: failure()
+        run: |
+          echo "❌ Release build failed!"
+          exit 1
