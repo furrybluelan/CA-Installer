@@ -34,8 +34,11 @@ jobs:
         with:
           python-version: '3.x'
       
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
+      - name: Install dependencies
+        run: |
+          # Install Android SDK Build Tools (dx)
+          sudo apt-get update
+          sudo apt-get install -y android-sdk-build-tools dx
       
       - name: Extract version from tag
         id: version
