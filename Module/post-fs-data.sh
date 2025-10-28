@@ -68,8 +68,9 @@ Main() {
         CheckCert "/data/user/0/com.network.proxy/files/ca.crt" && desc="$desc ProxyPin"
     fi
     
-    chown -R 0:0 "$MODDIR/system/etc/security/cacerts"
-    set_context /system/etc/security/cacerts "$MODDIR/system/etc/security/cacerts"
+    chown -R 0:0 ${MODDIR}/system/etc/security/cacerts
+	chmod 644 "$MODDIR/system/etc/security/cacerts/"*.0
+	set_context /system/etc/security/cacerts ${MODDIR}/system/etc/security/cacerts
     
     # Android 14 support
     if [ -d /apex/com.android.conscrypt/cacerts ]; then

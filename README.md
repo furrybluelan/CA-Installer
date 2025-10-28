@@ -166,6 +166,7 @@ python3 make.py
 
 - **Twilight** - 原始作者
 - **Lan** - 当前维护者
+- **tg@Squarelan** - 修复了目录权限问题
 
 ## 支持 | Support
 
