@@ -193,8 +193,8 @@ class Builder:
             shutil.make_archive(
                 base_name=str(self.OUTPUT_ZIP.with_suffix("")),
                 format="zip",
-                root_dir=str(self.MODULE_DIR.parent),
-                base_dir=self.MODULE_DIR.name
+                root_dir=str(self.MODULE_DIR),
+                #base_dir=self.MODULE_DIR.name
             )
             
             if self.OUTPUT_ZIP.exists():
