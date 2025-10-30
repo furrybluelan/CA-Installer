@@ -81,7 +81,7 @@ CertName.java 程序计算这个哈希值，确保证书被正确识别。
 │   │               └── .keep
 │   └── verify.sh			# 验证模块完整性
 ├── README.md
-└── make.py				# 构建脚本
+└── Make.py				# 构建脚本
 ```
 
 ## 文件说明 | File Descriptions
@@ -147,7 +147,7 @@ A: 支持 Magisk、KernelSU 和 APatch 三种框架。
 
 ```bash
 # 需要 Java 8+ 和 Android SDK Build Tools
-python3 make.py
+python3 Make.py
 ```
 
 这将生成 `Module.zip` 文件。
