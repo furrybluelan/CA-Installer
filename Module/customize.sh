@@ -19,20 +19,22 @@ fi
 . "$TMPDIR/verify.sh"
 
 MoveCert(){
+	AppName="$1"
+	CertFile="$2"
     if [ -f $2 ]; then
-        print_cn "➡️ 找到 $1 证书"
-        print_en "➡️ Found $1 certificate"
-        certname="$(/system/bin/app_process \
+        print_cn "➡️ 找到 $AppName 证书"
+        print_en "➡️ Found $AppName certificate"
+        CertName="$(/system/bin/app_process \
         -Djava.class.path="$MODPATH/CertName.dex" \
         / \
         --nice-name=CertHash \
-        CertName $2 &)"
-        cp $2 "$MODPATH/system/etc/security/cacerts/$certname"
-        print_cn "✅ $1 证书安装成功!"
-        print_en "✅ $1 certificate installed successfully"
+        CertName $CertFile &)"
+        cp $2 "$MODPATH/system/etc/security/cacerts/$CertName"
+        print_cn "✅ $AppName 证书安装成功!"
+        print_en "✅ $AppName certificate installed successfully"
     else
-        print_cn "❎️ 没有找到 $1 的证书，跳过安装"
-        print_en "❎️ No certificate found for $1, skipping this installation"
+        print_cn "❎️ 没有找到 $AppName 的证书，跳过安装"
+        print_en "❎️ No certificate found for $AppName, skipping this installation"
     fi
 }
     

@@ -30,15 +30,16 @@ set_context() {
 }
 
 CheckCert() {
-    if [ -f "$1" ]; then
-        certname=$(/system/bin/app_process \
+	CertFile=$1
+    if [ -f "$CertFile" ]; then
+        CertName=$(/system/bin/app_process \
             -Djava.class.path="$MODDIR/CertName.dex" \
             / \
             --nice-name=CertHash \
-            CertName "$1")
+            CertName "$CertName")
         
-        if [ -n "$certname" ] && ! [ -f "$MODDIR/system/etc/security/cacerts/$certname" ]; then
-            cp "$1" "$MODDIR/system/etc/security/cacerts/$certname"
+        if [ -n "$CertName" ] && ! [ -f "$MODDIR/system/etc/security/cacerts/$CertName" ]; then
+            cp "$1" "$MODDIR/system/etc/security/cacerts/$CertName"
         fi
         return 0
     else
@@ -47,25 +48,25 @@ CheckCert() {
 }
 
 Main() {
-    desc=""
+    Desc=""
     Ag_Cert_Hash=0f4ed297
     Ag_Cert_File=$(ls /data/misc/user/*/cacerts-added/${Ag_Cert_Hash}.* 2>/dev/null | (IFS=.; while read -r left right; do echo $right $left.$right; done) | sort -nr | (read -r left right; echo $right))
     
     # 检查文件存在再调用 CheckCert
     if [ -n "$Ag_Cert_File" ]; then
-        CheckCert "$Ag_Cert_File" && desc="$desc AdGuard,"
+        CheckCert "$Ag_Cert_File" && Desc="$Desc AdGuard,"
     fi
     
     if [ -f "/storage/emulated/0/Android/data/com.reqable.android/files/certificate/reqable-root.crt" ]; then
-        CheckCert "/storage/emulated/0/Android/data/com.reqable.android/files/certificate/reqable-root.crt" && desc="$desc Reqable,"
+        CheckCert "/storage/emulated/0/Android/data/com.reqable.android/files/certificate/reqable-root.crt" && Desc="$Desc Reqable,"
     fi
     
     if [ -f "/data/user/0/com.guoshi.httpcanary/cache/HttpCanary.pem" ]; then
-        CheckCert "/data/user/0/com.guoshi.httpcanary/cache/HttpCanary.pem" && desc="$desc HttpCanary,"
+        CheckCert "/data/user/0/com.guoshi.httpcanary/cache/HttpCanary.pem" && Desc="$Desc HttpCanary,"
     fi
     
     if [ -f "/data/user/0/com.network.proxy/files/ca.crt" ]; then
-        CheckCert "/data/user/0/com.network.proxy/files/ca.crt" && desc="$desc ProxyPin"
+        CheckCert "/data/user/0/com.network.proxy/files/ca.crt" && Desc="$Desc ProxyPin"
     fi
     
     chown -R 0:0 ${MODDIR}/system/etc/security/cacerts
@@ -100,12 +101,12 @@ Main() {
         rmdir /data/local/tmp/sys-ca-copy
     fi
     
-    if [ -n "$desc" ]; then
-        desc="${desc%,}"
+    if [ -n "$Desc" ]; then
+        Desc="${Desc%,}"
         if [ "$LOCALE" = "CN" ]; then
-            conflictdes_all "✅ 模块已生效，已将 ${desc} 的证书放入系统目录"
+            conflictdes_all "✅ 模块已生效，已将 ${Desc} 的证书放入系统目录"
         else
-            conflictdes_all "✅ Module activated, certificates from ${desc} have been installed into the system directory"
+            conflictdes_all "✅ Module activated, certificates from ${Desc} have been installed into the system directory"
         fi
     else
         if [ "$LOCALE" = "CN" ]; then
