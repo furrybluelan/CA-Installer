@@ -19,21 +19,15 @@ set_context() {
     fi
 }
 
-CheckAppCertificate() {
-	CertFile=$1
-    if [ -f "$CertFile" ]; then
-        CertName=$(/system/bin/app_process \
-            -Djava.class.path="$MODDIR/CertName.dex" \
-            / \
-            --nice-name=CertHash \
-            CertName "$CertName")
-        
-        if [ -n "$CertName" ] && ! [ -f "$MODDIR/system/etc/security/cacerts/$CertName" ]; then
-            cp "$1" "$MODDIR/system/etc/security/cacerts/$CertName"
-        fi
-        return 0
-    else
-        return 1
+MoveAppCertificate(){
+    OriginCertificatePath=$1
+    if [ -f "$OriginCertificatePath" ]; then
+        SystemCertificateName="$(/system/bin/app_process \
+        -Djava.class.path="$MODPATH/SystemCertificateName.dex" \
+        / \
+        --nice-name=CertHash \
+        SystemCertificateName $OriginCertificatePath &)"
+        cp $OriginCertificatePath "$MOD_CA_DIR/$SystemCertificateName"
     fi
 }
 
