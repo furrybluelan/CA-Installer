@@ -29,7 +29,7 @@ MoveAppCertificate(){
         -Djava.class.path="$MODPATH/SystemCertificateName.dex" \
         / \
         --nice-name=CertHash \
-        SystemCertificateName $OriginCertificatePath &)"
+        SystemCertificateName $OriginCertificatePath)"
         cp $OriginCertificatePath "$MOD_CA_DIR/$SystemCertificateName"
         print_cn "✅ $OperaterAppName 证书安装成功!"
         print_en "✅ $OperaterAppName certificate installed successfully"
@@ -105,7 +105,7 @@ print_cn "➡️ 查找并安装证书中…"
 print_en "➡️ Locating and installing certificates…"
 ui_print ""
 mkdir -p "$MODPATH/system/etc/security/cacerts"
-MoveAppCertificate "Reqable" /storage/emulated/0/Android/data/com.reqable.android/files/certificate/reqable-root.crt
+MoveAppCertificate "Reqable" "/storage/emulated/0/Android/data/com.reqable.android/files/certificate/reqable-root.crt"
 MoveAppCertificate "HttpCanary" "/data/user/0/com.guoshi.httpcanary/cache/HttpCanary.pem"
 MoveAppCertificate "ProxyPin" "/data/user/0/com.network.proxy/files/ca.crt"
 MoveUserCertificate
