@@ -40,9 +40,13 @@ MoveAppCertificate(){
 }
 
 MoveUserCertificate(){
+    print_cn "➡️ 移动用户证书…"
+    print_en "➡️ Moving user certificates…"
+    count=0
     for user_dir in /data/misc/user/*/cacerts-added; do
         [ -d "$user_dir" ] || continue
-        
+        count=$((count + 1))
+
         # 2. 遍历该目录下所有的证书文件
         for cert_path in "$user_dir"/*; do
             [ -f "$cert_path" ] || continue
@@ -79,6 +83,10 @@ MoveUserCertificate(){
             chmod 644 "$MOD_CA_DIR/$target_name"
         done
     done
+    if [ $count -eq 0 ]; then
+        print_cn "❎️ 没有找到用户证书，跳过安装"
+        print_en "❎️ No user certificates found, skipping installation"
+    fi
 }
     
 print_cn "➡️ 提取模块文件"

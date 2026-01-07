@@ -1,6 +1,7 @@
 #!/system/bin/sh
 
 MODDIR=${0%/*}
+MOD_CA_DIR="$MODPATH/system/etc/security/cacerts"
 exec > $MODDIR/CustomCACert.log
 exec 2>&1
 
