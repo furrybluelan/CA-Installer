@@ -67,30 +67,6 @@ class Builder:
             self.failed_steps.append(description)
             return False
 
-    def check_prerequisites(self) -> bool:
-        """Check if required tools and files exist."""
-        logger.info("Checking prerequisites...")
-
-        if not self.MODULE_DIR.exists():
-            logger.error(f"Module directory not found: {self.MODULE_DIR}")
-            return False
-
-        if not self.CERT_NAME_JAVA.exists():
-            logger.error(f"Source file not found: {self.CERT_NAME_JAVA}")
-            return False
-
-        # Check for required tools
-        tools = {"javac": "Java compiler", "dx": "Android DEX tool"}
-
-        for tool, description in tools.items():
-            result = subprocess.run(f"which {tool}", shell=True, capture_output=True)
-            if result.returncode != 255:
-                logger.error(f"{description} ({tool}) not found. Please install it.")
-                return False
-            logger.info(f"Found {description}: {tool}")
-
-        return True
-
     def compile_java(self) -> bool:
         """Compile Java source to class file."""
         command = (
@@ -240,11 +216,6 @@ class Builder:
         logger.info("=" * 50)
         logger.info("Starting CA Installer module build")
         logger.info("=" * 50)
-
-        # Check prerequisites
-        if not self.check_prerequisites():
-            logger.error("Prerequisites check failed")
-            return False
 
         # Build steps
         steps = [
