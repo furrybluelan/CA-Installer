@@ -76,7 +76,7 @@ CheckUserCertificate(){
 
 Main() {
     # 检查文件存在再调用 CheckAppCertificate
-    CheckAppCertificateUserCertificate
+    CheckUserCertificate
     if [ -f "/storage/emulated/0/Android/data/com.reqable.android/files/certificate/reqable-root.crt" ]; then
         CheckAppCertificate "/storage/emulated/0/Android/data/com.reqable.android/files/certificate/reqable-root.crt"
     fi
