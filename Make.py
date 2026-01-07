@@ -84,7 +84,7 @@ class Builder:
 
         for tool, description in tools.items():
             result = subprocess.run(f"which {tool}", shell=True, capture_output=True)
-            if result.returncode != 0:
+            if result.returncode != 255:
                 logger.error(f"{description} ({tool}) not found. Please install it.")
                 return False
             logger.info(f"Found {description}: {tool}")
