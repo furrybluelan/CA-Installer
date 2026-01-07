@@ -6,6 +6,7 @@ print_cn() { [ "$LOCALE" = "CN" ] && ui_print "$1"; }
 print_en() { [ "$LOCALE" = "EN" ] && ui_print "$1"; }
 abort_cn() { [ "$LOCALE" = "CN" ] && abort_verify "$1"; }
 abort_en() { [ "$LOCALE" = "EN" ] && abort_verify "$1"; }
+MOD_CA_DIR="$MODPATH/system/etc/security/cacerts"
 
 unzip -o "$ZIPFILE" 'verify.sh' -d "$TMPDIR" >/dev/null
 if [ ! -f "$TMPDIR/verify.sh" ]; then
@@ -18,48 +19,90 @@ if [ ! -f "$TMPDIR/verify.sh" ]; then
 fi
 . "$TMPDIR/verify.sh"
 
-MoveCert(){
-	AppName="$1"
-	CertFile="$2"
-    if [ -f $2 ]; then
-        print_cn "➡️ 找到 $AppName 证书"
-        print_en "➡️ Found $AppName certificate"
-        CertName="$(/system/bin/app_process \
-        -Djava.class.path="$MODPATH/CertName.dex" \
+MoveAppCertificate(){
+    OperaterAppName=$1
+    OriginCertificatePath=$2
+    if [ -f "$OriginCertificatePath" ]; then
+        print_cn "➡️ 找到 $OperaterAppName 证书"
+        print_en "➡️ Found $OperaterAppName Certificate"
+        SystemCertificateName="$(/system/bin/app_process \
+        -Djava.class.path="$MODPATH/SystemCertificateName.dex" \
         / \
         --nice-name=CertHash \
-        CertName $CertFile &)"
-        cp $2 "$MODPATH/system/etc/security/cacerts/$CertName"
-        print_cn "✅ $AppName 证书安装成功!"
-        print_en "✅ $AppName certificate installed successfully"
+        SystemCertificateName $OriginCertificatePath &)"
+        cp $OriginCertificatePath "$MOD_CA_DIR/$SystemCertificateName"
+        print_cn "✅ $OperaterAppName 证书安装成功!"
+        print_en "✅ $OperaterAppName certificate installed successfully"
     else
-        print_cn "❎️ 没有找到 $AppName 的证书，跳过安装"
-        print_en "❎️ No certificate found for $AppName, skipping this installation"
+        print_cn "❎️ 没有找到 $OperaterAppName 的证书，跳过安装"
+        print_en "❎️ No certificate found for $OperaterAppName, skipping this installation"
     fi
+}
+
+MoveUserCertificate(){
+    for user_dir in /data/misc/user/*/cacerts-added; do
+        [ -d "$user_dir" ] || continue
+        
+        # 2. 遍历该目录下所有的证书文件
+        for cert_path in "$user_dir"/*; do
+            [ -f "$cert_path" ] || continue
+            
+            # 获取文件名（例如 0f4ed297.0）
+            cert_name=$(basename "$cert_path")
+            
+            # 3. 冲突处理逻辑
+            if [ -f "$MOD_CA_DIR/$cert_name" ]; then
+                # 如果目标已存在同名文件，对比文件是否一致
+                if ! cmp -s "$cert_path" "$MOD_CA_DIR/$cert_name"; then
+                    # 如果内容不同，则增加后缀索引（例如 .0 变为 .1）
+                    # 提取哈希部分 (点号前的部分)
+                    hash_part="${cert_name%.*}"
+                    # 寻找下一个可用的索引数字
+                    suffix=1
+                    while [ -f "$MOD_CA_DIR/$hash_part.$suffix" ]; do
+                        suffix=$((suffix + 1))
+                    done
+                    target_name="$hash_part.$suffix"
+                else
+                    # 内容相同，无需重复复制
+                    continue
+                fi
+            else
+                target_name="$cert_name"
+            fi
+
+            # 4. 执行复制并设置权限
+            print_cn "✅ 移动用户证书 $cert_path -> $MOD_CA_DIR/$target_name"
+            print_en "✅ Moving user certificate $cert_path -> $MOD_CA_DIR/$target_name"
+            cp -p "$cert_path" "$MOD_CA_DIR/$target_name"
+            chown root:root "$MOD_CA_DIR/$target_name"
+            chmod 644 "$MOD_CA_DIR/$target_name"
+        done
+    done
 }
     
 print_cn "➡️ 提取模块文件"
 print_en "➡️ Extracting module files"
 FILES="
 system/etc/security/cacerts/.keep
+SystemCertificateName.dex
 post-fs-data.sh
-CertName.dex
 module.prop
 "
 for FILE in $FILES; do
   extract "$ZIPFILE" "$FILE" "$MODPATH"
 done
-extract "$ZIPFILE" ".ca_inst_state.sh" "/data/adb/service.d"
 
 print_cn "➡️ 查找并安装证书中…"
 print_en "➡️ Locating and installing certificates…"
 ui_print ""
 mkdir -p "$MODPATH/system/etc/security/cacerts"
-MoveCert "Reqable" "/storage/emulated/0/Android/data/com.reqable.android/files/certificate/reqable-root.crt"
-MoveCert "HttpCanary" "/data/user/0/com.guoshi.httpcanary/cache/HttpCanary.pem"
-MoveCert "ProxyPin" "/data/user/0/com.network.proxy/files/ca.crt"
+MoveAppCertificate "Reqable" /storage/emulated/0/Android/data/com.reqable.android/files/certificate/reqable-root.crt
+MoveAppCertificate "HttpCanary" "/data/user/0/com.guoshi.httpcanary/cache/HttpCanary.pem"
+MoveAppCertificate "ProxyPin" "/data/user/0/com.network.proxy/files/ca.crt"
+MoveUserCertificate
 
-print_cn "➡️ 删除临时文件"
+ui_print "➡️ 删除临时文件"
 print_en "➡️ Deleting temporary files"
 rm "$MODPATH/system/etc/security/cacerts/.keep"
 

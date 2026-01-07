@@ -1,42 +1,39 @@
 TMPDIR_FOR_VERIFY="$TMPDIR/.vunzip"
-mkdir -p "$TMPDIR_FOR_VERIFY"
+mkdir "$TMPDIR_FOR_VERIFY"
 
-extract() {
-  unpack() {
-    local zip=$1
-    local file=$2
-    local dir=$3
-    local quiet=$4
-    unzip -o "$zip" "$file" -d "$dir" >&2
-    file_path="$dir/$file"
-    if [ ! -f "$file_path" ]; then
-      abort_cn "$file 不存在!"
-      abort_en "$file not exists"
-    fi
-    unzip -o "$zip" "$file.sha256" -d "$TMPDIR_FOR_VERIFY" >&2
-    hash_path="$TMPDIR_FOR_VERIFY/$file.sha256"
-    if [ ! -f "$hash_path" ]; then
-      abort_cn "$file.sha256 不存在!"
-      abort_en "$file.sha256 not exists"
-    fi
-    if ! (echo "$(cat "$hash_path")  $file_path" | sha256sum -c -s -); then
-      abort_cn "$file 被篡改!"
-      abort_en "Failed to verify $file"
-    fi
-    if [ ! "$quiet" = "-q" ]; then
-      print_cn "- $file 未篡改"
-      print_en "- Verified $file" >&1
-    fi
-  }
-  if [[ "$2" == */\* ]]; then
-    for files in $(unzip -l "$1" "$2" | awk 'NR>3 {print $4}' | grep -v '\.sha256$' | grep -v '/$' | grep -v '^$'); do
-      unpack "$1" "$files" "$3" "$4"
-    done
-  else
-    unpack "$@"
-  fi
+abort_verify() {
+  ui_print "*********************************************************"
+  ui_print "❌ $1"
+  ui_print "❌ 这个ZIP文件已损坏,请重新下载"
+  abort "*********************************************************"
 }
 
-extract "$ZIPFILE" 'verify.sh' "$TMPDIR_FOR_VERIFY" -q
-extract "$ZIPFILE" 'customize.sh' "$TMPDIR_FOR_VERIFY" -q
-extract "$ZIPFILE" 'META-INF/com/google/android/*' "$TMPDIR_FOR_VERIFY" -q
+# extract <zip> <file> <target dir> <junk paths>
+extract() {
+  zip=$1
+  file=$2
+  dir=$3
+  junk_paths=$4
+  [ -z "$junk_paths" ] && junk_paths=false
+  opts="-o"
+  [ $junk_paths = true ] && opts="-oj"
+
+  file_path=""
+  hash_path=""
+  if [ $junk_paths = true ]; then
+    file_path="$dir/$(basename "$file")"
+    hash_path="$TMPDIR_FOR_VERIFY/$(basename "$file").sha256"
+  else
+    file_path="$dir/$file"
+    hash_path="$TMPDIR_FOR_VERIFY/$file.sha256"
+  fi
+
+  unzip $opts "$zip" "$file" -d "$dir" >&2
+  [ -f "$file_path" ] || abort_verify "$file 不存在!"
+
+  unzip $opts "$zip" "$file.sha256" -d "$TMPDIR_FOR_VERIFY" >&2
+  [ -f "$hash_path" ] || abort_verify "$file.sha256 不存在!"
+
+  (echo "$(cat "$hash_path")  $file_path" | sha256sum -c -s -) || abort_verify "$file 已篡改!"
+  ui_print "➡️ $file 未篡改" >&1
+}

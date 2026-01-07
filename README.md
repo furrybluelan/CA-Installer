@@ -12,7 +12,7 @@
 
 ## 支持的应用
 
-- **AdGuard** - 广告拦截应用
+- **UserCertificateInstaller** - Android 系统证书安装器
 - **Reqable** - 抓包软件
 - **HttpCanary** - 抓包软件
 - **ProxyPin** - 抓包软件
@@ -26,20 +26,20 @@
 ## 工作原理 | How it Works
 
 1. 从各个软件的私有目录提取证书
-2. 通过 CertName.dex 计算证书的系统证书名
+2. 通过 SystemCertificateName.dex 计算证书的系统证书名
 3. 挂载证书
 
 ### 安装流程 | Installation Process
 
 1. **customize.sh** - 在安装过程中提取模块文件并查找已安装的证书
 2. **post-fs-data.sh** - 启动时检测新增的证书并挂载到系统证书目录
-3. **CertName.dex** - 计算证书的 MD5 哈希值以确定正确的证书文件名
+3. **SystemCertificateName.dex** - 计算证书的 MD5 哈希值以确定正确的证书文件名
 
 ### 证书命名 | Certificate Naming
 
 系统证书使用 OpenSSL 风格的命名规则：
 
-```
+``` Name
 [HASH].0
 ```
 
@@ -58,63 +58,70 @@ CertName.java 程序计算这个哈希值，确保证书被正确识别。
 
 ## 文件结构 | File Structure
 
-```
+``` shell:tree
  .
 ├── CHANGELOG.md
-├── CertName.java              # 证书哈希计算程序
+├── SystemCertificateName.java              # 证书哈希计算程序
 ├── LICENSE
 ├── Module
-│   ├── .ca_inst_state.sh	# 模块状态检测
-│   ├── META-INF			# Magisk支持
+│   ├── META-INF   # Magisk支持
 │   │   └── com
 │   │       └── google
 │   │           └── android
 │   │               ├── update-binary
 │   │               └── updater-script
-│   ├── customize.sh		# 安装脚本
-│   ├── module.prop		# 模块信息
-│   ├── post-fs-data.sh		# 启动时执行脚本
+│   ├── customize.sh  # 安装脚本
+│   ├── module.prop  # 模块信息
+│   ├── post-fs-data.sh  # 启动时执行脚本
 │   ├── system
 │   │   └── etc
 │   │       └── security
 │   │           └── cacerts
 │   │               └── .keep
-│   └── verify.sh			# 验证模块完整性
+│   └── verify.sh   # 验证模块完整性
 ├── README.md
-└── Make.py				# 构建脚本
+└── make.py    # 构建脚本
 ```
 
 ## 文件说明 | File Descriptions
 
 ### CertName.java
+
 计算证书的系统级文件名。使用 MD5 哈希算法计算证书 Subject Name 的哈希值，取前 4 字节作为十六进制文件名前缀。
 
 ### make.py
+
 构建脚本，执行以下操作：
+
 - 编译 CertName.java 为 dex 文件
 - 为所有文件生成 SHA256 校验和
 - 打包整个模块为 ZIP 文件
 
 ### customize.sh
+
 Magisk 安装脚本，负责：
+
 - 验证 ZIP 文件完整性
 - 提取模块文件
 - 查找并复制用户已安装的证书到模块目录
 
 ### post-fs-data.sh
+
 启动脚本，负责：
+
 - 检测系统中的证书
 - 设置正确的 SELinux 上下文
 - 对于 Android 14+，挂载证书目录到 APEX 模块
 
 ### .ca_inst_state.sh
+
 服务脚本，检查模块是否被禁用并更新模块状态描述。
 
 ## 日志 | Logs
 
 安装后的日志可以在以下位置找到：
 
-```
+``` File
 /data/adb/modules/CA-Installer/CustomCACert.log
 ```
 
@@ -147,7 +154,7 @@ A: 支持 Magisk、KernelSU 和 APatch 三种框架。
 
 ```bash
 # 需要 Java 8+ 和 Android SDK Build Tools
-python3 Make.py
+python3 make.py
 ```
 
 这将生成 `Module.zip` 文件。
@@ -182,4 +189,4 @@ python3 Make.py
 
 ---
 
-**最后更新** | Last Updated: 2025-10-30
+**最后更新** | Last Updated: 2026-01-07

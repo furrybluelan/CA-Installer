@@ -6,16 +6,6 @@ exec 2>&1
 
 set -x
 
-if [[ "$(getprop persist.sys.locale)" == *"zh"* ]] || [[ "$(getprop ro.product.locale)" == *"zh"* ]]; then
-    LOCALE="CN"
-else
-    LOCALE="EN"
-fi
-
-conflictdes_all() { 
-    sed -i "s/^description=.*/description=$1/" "$MODDIR/module.prop"
-}
-
 set_context() {
     [ "$(getenforce)" = "Enforcing" ] || return 0
 
@@ -29,7 +19,7 @@ set_context() {
     fi
 }
 
-CheckCert() {
+CheckAppCertificate() {
 	CertFile=$1
     if [ -f "$CertFile" ]; then
         CertName=$(/system/bin/app_process \
@@ -47,30 +37,60 @@ CheckCert() {
     fi
 }
 
+CheckUserCertificate(){
+    for user_dir in /data/misc/user/*/cacerts-added; do
+        [ -d "$user_dir" ] || continue
+        
+        # 2. 遍历该目录下所有的证书文件
+        for cert_path in "$user_dir"/*; do
+            [ -f "$cert_path" ] || continue
+            
+            # 获取文件名（例如 0f4ed297.0）
+            cert_name=$(basename "$cert_path")
+            
+            # 3. 冲突处理逻辑
+            if [ -f "$MOD_CA_DIR/$cert_name" ]; then
+                # 如果目标已存在同名文件，对比文件是否一致
+                if ! cmp -s "$cert_path" "$MOD_CA_DIR/$cert_name"; then
+                    # 如果内容不同，则增加后缀索引（例如 .0 变为 .1）
+                    # 提取哈希部分 (点号前的部分)
+                    hash_part="${cert_name%.*}"
+                    # 寻找下一个可用的索引数字
+                    suffix=1
+                    while [ -f "$MOD_CA_DIR/$hash_part.$suffix" ]; do
+                        suffix=$((suffix + 1))
+                    done
+                    target_name="$hash_part.$suffix"
+                else
+                    # 内容相同，无需重复复制
+                    continue
+                fi
+            else
+                target_name="$cert_name"
+            fi
+            # 4. 执行复制
+            cp -p "$cert_path" "$MOD_CA_DIR/$target_name"
+        done
+    done
+}
+
 Main() {
-    Desc=""
-    Ag_Cert_Hash=0f4ed297
-    Ag_Cert_File=$(ls /data/misc/user/*/cacerts-added/${Ag_Cert_Hash}.* 2>/dev/null | (IFS=.; while read -r left right; do echo $right $left.$right; done) | sort -nr | (read -r left right; echo $right))
-    
-    # 检查文件存在再调用 CheckCert
-    if [ -n "$Ag_Cert_File" ]; then
-        CheckCert "$Ag_Cert_File" && Desc="$Desc AdGuard,"
-    fi
-    
+    # 检查文件存在再调用 CheckAppCertificate
+    CheckAppCertificateUserCertificate
     if [ -f "/storage/emulated/0/Android/data/com.reqable.android/files/certificate/reqable-root.crt" ]; then
-        CheckCert "/storage/emulated/0/Android/data/com.reqable.android/files/certificate/reqable-root.crt" && Desc="$Desc Reqable,"
+        CheckAppCertificate "/storage/emulated/0/Android/data/com.reqable.android/files/certificate/reqable-root.crt"
     fi
     
     if [ -f "/data/user/0/com.guoshi.httpcanary/cache/HttpCanary.pem" ]; then
-        CheckCert "/data/user/0/com.guoshi.httpcanary/cache/HttpCanary.pem" && Desc="$Desc HttpCanary,"
+        CheckAppCertificate "/data/user/0/com.guoshi.httpcanary/cache/HttpCanary.pem"
     fi
     
     if [ -f "/data/user/0/com.network.proxy/files/ca.crt" ]; then
-        CheckCert "/data/user/0/com.network.proxy/files/ca.crt" && Desc="$Desc ProxyPin"
+        CheckAppCertificate "/data/user/0/com.network.proxy/files/ca.crt"
     fi
     
     chown -R 0:0 ${MODDIR}/system/etc/security/cacerts
-	chmod 644 "$MODDIR/system/etc/security/cacerts/"*.0
+	chmod 644 "$MODDIR/system/etc/security/cacerts/"*.*
 	set_context /system/etc/security/cacerts ${MODDIR}/system/etc/security/cacerts
     
     # Android 14 support
@@ -99,21 +119,6 @@ Main() {
         
         umount /data/local/tmp/sys-ca-copy
         rmdir /data/local/tmp/sys-ca-copy
-    fi
-    
-    if [ -n "$Desc" ]; then
-        Desc="${Desc%,}"
-        if [ "$LOCALE" = "CN" ]; then
-            conflictdes_all "✅ 模块已生效，已将 ${Desc} 的证书放入系统目录"
-        else
-            conflictdes_all "✅ Module activated, certificates from ${Desc} have been installed into the system directory"
-        fi
-    else
-        if [ "$LOCALE" = "CN" ]; then
-            conflictdes_all "✅ 模块已启用，无作用域"
-        else
-            conflictdes_all "✅ Module enabled, no certificates found"
-        fi
     fi
 }
 

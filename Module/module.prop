@@ -1,6 +1,6 @@
 id=CA-Installer
 name=CA Installer
-version=v1.7-RC1
-versionCode=20251030
-author=Twilight,Lan,Squarelan-Modded
-description=将多种抓包软件的CA证书安装到系统中，支持Magisk/KernelSU/APatch. Install CA certificates from multiple packet capture apps into the system, supporting Magisk/KernelSU/APatch.
+version=v1.8-Beta0
+versionCode=202601072025
+author=Twilight,FurryBlueLan,Squarelan
+description=将应用和系统的CA证书安装到系统中，支持Magisk/KernelSU/APatch.
